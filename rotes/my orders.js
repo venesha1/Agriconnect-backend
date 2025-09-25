@@ -1,39 +1,28 @@
-const express = require("express");
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
-const pool = require("../db");
+const express = require('express');
+const pool = require('../db');
+const verifyToken = require('../middleware/verifyToken');
 
 const router = express.Router();
 
-const JWT_SECRET = process.env.JWT_SECRET || "your_super_secret_key";
-
-router.post("/register", async (req, res) => {
-  const { name, email, password, phone_number, role, rada_registration_number } = req.body;
-
-  if (!name || !email || !password || !role) {
-    return res.status(400).json({ message: "Please provide name, email, password, and role." });
-  }
-  if (role !== "Farmer" && role !== "Buyer") {
-    return res.status(400).json({ message: "Role must be either 'Farmer' or 'Buyer'." });
-  }
-
+router.get('/', verifyToken, async (req, res) => {
   try {
-    const [existingUsers] = await pool.query("SELECT email FROM Users WHERE email = ?", [email]);
-    if (existingUsers.length > 0) {
-      return res.status(409).json({ message: "An account with this email already exists." });
+    const farmerId = req.user.user_id;
+
+    if (req.user.role !== 'Farmer') {
+        return res.status(403).json({ message: 'Forbidden: Access is restricted to Farmers only.' });
     }
 
-    const salt = await bcrypt.genSalt(10);
-    const password_hash = await bcrypt.hash(password, salt);
+    const sql = 'SELECT * FROM Products WHERE farmer_id = ? ORDER BY created_at DESC';
+    const [myProducts] = await pool.query(sql, [farmerId]);
 
-    const newUser = {
-      name,
-      email,
-      password_hash,
-      phone_number,
-      role,
-      rada_registration_number: role === "Farmer" ? rada_registration_number : null,
-    };
+    res.json(myProducts);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+module.exports = router;
 
     const [result] = await pool.query("INSERT INTO Users SET ?", newUser);
     const userId = result.insertId;
