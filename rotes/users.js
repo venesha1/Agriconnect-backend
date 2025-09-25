@@ -1,39 +1,84 @@
-const express = require("express");
-const pool = require("../db");
-const verifyToken = require("../middleware/verifyToken");
+const express = require('express');
+const cors = require('cors');
+const dotenv = require('dotenv');
 
-const router = express.Router();
+// Load environment variables
+dotenv.config();
 
-/**
- * @route   GET /api/dashboard
- * @desc    Get aggregated data for the farmer's dashboard
- * @access  Protected (Farmers only)
- */
-router.get("/", verifyToken, async (req, res) => {
-  const { user_id, role } = req.user;
+const app = express();
+const PORT = process.env.PORT || 10000;
 
-  // 1. Authorization Check: Ensure the user has the 'Farmer' role
-  if (role !== "Farmer") {
-    return res.status(403).json({ message: "Forbidden: Access is restricted to Farmers only." });
-  }
+// Middleware
+app.use(cors());
+app.use(express.json());
 
-  try {
-    // --- AGGREGATE SALES DATA ---
+// Import routes (updated to match your 'Rotes' folder)
+const userRoutes = require('./Rotes/users');
+const productRoutes = require('./Rotes/products');
+const myProductRoutes = require('./Rotes/my-products');
+const orderRoutes = require('./Rotes/orders');
+const myOrderRoutes = require('./Rotes/my-orders');
+const eventRoutes = require('./Rotes/events');
+const dashboardRoutes = require('./Rotes/dashboard');
+const attendanceRoutes = require('./Rotes/attendance');
+const requestRoutes = require('./Rotes/requests');
+const idRequestRoutes = require('./Rotes/id-requests');
 
-    // 2. Calculate Total Revenue and Number of Orders
-    const salesQuery = `
-      SELECT
-        SUM(oi.quantity_purchased * p.price) AS total_revenue,
-        COUNT(DISTINCT o.order_id) AS number_of_orders
-      FROM Orders o
-      JOIN Order_Items oi ON o.order_id = oi.order_id
-      JOIN Products p ON oi.product_id = p.product_id
-      WHERE p.farmer_id = ? AND o.status = 'Completed';
-    `;
+// Use routes with proper API endpoints
+app.use('/api/users', userRoutes);
+app.use('/api/products', productRoutes);
+app.use('/api/my-products', myProductRoutes);
+app.use('/api/orders', orderRoutes);
+app.use('/api/my-orders', myOrderRoutes);
+app.use('/api/events', eventRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/events', attendanceRoutes);
+app.use('/api/requests', requestRoutes);
+app.use('/api/id-requests', idRequestRoutes);
 
-    // 3. Get the 5 most recent orders for the farmer's products
-    const recentOrdersQuery = `
-      SELECT
+// Basic route for testing
+app.get('/', (req, res) => {
+    res.json({ 
+        message: 'Agri-Connect Jamaica API is running!',
+        status: 'success',
+        timestamp: new Date().toISOString()
+    });
+});
+
+// Health check route
+app.get('/health', (req, res) => {
+    res.json({ 
+        status: 'healthy',
+        uptime: process.uptime(),
+        timestamp: new Date().toISOString()
+    });
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).json({ 
+        message: 'Something went wrong!',
+        error: process.env.NODE_ENV === 'production' ? {} : err.stack
+    });
+});
+
+// 404 handler
+app.use('*', (req, res) => {
+    res.status(404).json({ 
+        message: 'Route not found',
+        path: req.originalUrl
+    });
+});
+
+// Start server
+app.listen(PORT, () => {
+    console.log(`🚀 Agri-Connect Jamaica API is running on port ${PORT}`);
+    console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`🌐 Access at: http://localhost:${PORT}`);
+});
+
+module.exports = app;
         o.order_id,
         o.order_date,
         o.total_amount,
