@@ -26,14 +26,6 @@ app.get('/health', (req, res) => {
 app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
 });
-app.use('/api/id-requests', idRequestRoutes);
-
-// Basic route
-app.get('/', (req, res) => {
-    res.json({ 
-        message: 'Agri-Connect Jamaica API is running!',
-        status: 'success'
-    });
 });
 
 // Start server
